@@ -12,9 +12,10 @@ type Stats struct {
 }
 type Portfolio struct {
 	InitialValue float64
-	Weights      map[string]float64 // e.g., {"BTC-USD": 0.05, "EUNL.DE": 0.95}
-	SellRate     float64            // e.g., 0.05 for 5% annual sale
-	Years        int                // e.g., 5, 10, 15
+	Weights      map[string]float64
+	SellRate     float64
+	TaxRate      float64
+	Years        int
 }
 type SimulationResult struct {
 	Values [][]float64 // Portfolio values for each simulation run

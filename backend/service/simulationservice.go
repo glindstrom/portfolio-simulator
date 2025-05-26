@@ -39,7 +39,7 @@ func (s *SimulationService) RunSimulation(portfolio models.Portfolio, nSimulatio
 				stat := stats[symbol]
 				annualReturn := rand.NormFloat64()*stat.Volatility + stat.MeanReturn
 				if math.IsNaN(annualReturn) || math.IsInf(annualReturn, 0) {
-					annualReturn = 0.0 // Fallback
+					annualReturn = 0.0
 				}
 				portfolioReturn += weight * annualReturn
 			}
@@ -48,22 +48,18 @@ func (s *SimulationService) RunSimulation(portfolio models.Portfolio, nSimulatio
 			}
 			value *= math.Exp(portfolioReturn)
 			if math.IsNaN(value) || math.IsInf(value, 0) {
-				value = yearlyValues[len(yearlyValues)-1] // Keep last valid value
+				value = yearlyValues[len(yearlyValues)-1]
 			}
-			if portfolio.SellRate > 0 {
+			if portfolio.SellRate > 0 && value > 0 {
 				sellAmount := value * portfolio.SellRate
 				gain := sellAmount * (value/portfolio.InitialValue - 1)
 				tax := 0.0
 				if gain > 0 {
-					if gain <= 30000 {
-						tax = gain * 0.3
-					} else {
-						tax = 30000*0.3 + (gain-30000)*0.34
-					}
+					tax = math.Min(gain*portfolio.TaxRate, value-sellAmount)
 				}
 				value -= sellAmount + tax
-				if math.IsNaN(value) || value < 0 {
-					value = 0.0 // Prevent negative or NaN
+				if value < 0 || math.IsNaN(value) {
+					value = 0.0
 				}
 			}
 			yearlyValues = append(yearlyValues, value)

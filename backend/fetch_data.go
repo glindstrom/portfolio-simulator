@@ -109,6 +109,7 @@ func main() {
 		InitialValue: 100000,
 		Weights:      map[string]float64{"BTC": 0.05, "EUNL.DE": 0.95},
 		SellRate:     0.05,
+		TaxRate:      0.30,
 		Years:        10,
 	}
 	result, err := simService.RunSimulation(portfolio, 1000)
