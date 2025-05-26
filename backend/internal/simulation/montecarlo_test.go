@@ -6,23 +6,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSimulate(t *testing.T) {
+func TestSimulateWithWithdrawal(t *testing.T) {
 	sim := &Simulator{
-		Returns:      []float64{0.01, -0.005, 0.02}, // Simplified historical returns
-		InitialValue: 10000,
-		Years:        5,
-		Simulations:  100,
+		Returns:          []float64{0.01, -0.005, 0.02},
+		InitialValue:     10000,
+		Years:            5,
+		Simulations:      100,
+		AnnualWithdrawal: 0.04, // 4% withdrawal per year of initial value
+		InflationRate:    0.02, // 2% annual inflation rate
 	}
 
 	result := sim.Simulate()
 
 	require.Len(t, result.Paths, sim.Simulations)
 
-	expectedMonths := sim.Years * 12
+	months := sim.Years * 12
 	for _, path := range result.Paths {
-		require.Len(t, path, expectedMonths+1) // +1 for initial value
+		require.Len(t, path, months+1)
+
 		for _, val := range path {
-			require.Greater(t, val, 0.0)
+			// Portfolio value should never be negative
+			require.GreaterOrEqual(t, val, 0.0)
 		}
 	}
 }
