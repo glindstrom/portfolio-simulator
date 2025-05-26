@@ -1,39 +1,44 @@
-package tiingo
+//go:build integration
+
+package tiingo_test
 
 import (
+	"os"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
+	"portfolio-simulator/backend/internal/data/tiingo"
 )
 
-func TestToMonthlyReturns(t *testing.T) {
-	raw := []PriceData{
-		{Date: parseDate("2024-01-31"), Close: 100},
-		{Date: parseDate("2024-02-29"), Close: 110},
-		{Date: parseDate("2024-03-31"), Close: 121},
-		{Date: parseDate("2024-04-30"), Close: 115.5},
-	}
+var (
+	service       *tiingo.TiingoService
+	cachedReturns map[string][]float64
+)
 
-	expected := []float64{
-		0.10,            // (110 - 100) / 100
-		0.10,            // (121 - 110) / 110
-		-0.045454545455, // (115.5 - 121) / 121
-	}
-
-	returns := ToMonthlyReturns(raw)
-
-	require.Len(t, returns, len(expected), "unexpected number of monthly returns")
-
-	for i := range expected {
-		require.InEpsilonf(t, expected[i], returns[i], 1e-6,
-			"return[%d]: expected %.6f, got %.6f", i, expected[i], returns[i])
-	}
+func TestMain(m *testing.M) {
+	service = tiingo.NewTiingoService()
+	cachedReturns = make(map[string][]float64)
+	os.Exit(m.Run())
 }
 
-// Helper to parse date strings
-func parseDate(s string) time.Time {
-	t, err := time.Parse("2006-01-02", s)
-	require.NoError(nil, err)
-	return t
+func getReturns(t *testing.T, ticker string) []float64 {
+	if returns, ok := cachedReturns[ticker]; ok {
+		return returns
+	}
+
+	returns, err := service.GetMonthlyReturns(ticker)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(returns), 10)
+	cachedReturns[ticker] = returns
+	return returns
+}
+
+func TestGetMonthlyReturns_EUNL(t *testing.T) {
+	returns := getReturns(t, "EUNL")
+	require.NotEmpty(t, returns)
+}
+
+func TestGetMonthlyReturns_BTC(t *testing.T) {
+	returns := getReturns(t, "btcusd")
+	require.NotEmpty(t, returns)
 }

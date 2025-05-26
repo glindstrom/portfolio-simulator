@@ -3,45 +3,76 @@ package tiingo
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"time"
 )
 
 type PriceData struct {
-	Date  time.Time `json:"date"`
-	Close float64   `json:"close"`
+	Date  time.Time
+	Close float64
 }
 
-func GetDailyPrices(symbol string, startDate, endDate time.Time) ([]PriceData, error) {
-	apiKey := os.Getenv("TIINGO_API_KEY")
-	if apiKey == "" {
-		return nil, fmt.Errorf("TIINGO_API_KEY not set")
+// TiingoService fetches price data from Tiingo.
+type TiingoService struct {
+	APIKey string
+	Client *http.Client
+}
+
+// NewTiingoService returns a new instance of TiingoService.
+func NewTiingoService() *TiingoService {
+	return &TiingoService{
+		APIKey: os.Getenv("TIINGO_API_KEY"),
+		Client: http.DefaultClient,
 	}
+}
 
-	url := fmt.Sprintf("https://api.tiingo.com/tiingo/daily/%s/prices?startDate=%s&endDate=%s&token=%s",
-		symbol,
-		startDate.Format("2006-01-02"),
-		endDate.Format("2006-01-02"),
-		apiKey,
-	)
-
-	resp, err := http.Get(url)
+// GetMonthlyReturns fetches monthly closing prices and returns percentage returns.
+func (s *TiingoService) GetMonthlyReturns(ticker string) ([]float64, error) {
+	prices, err := s.GetMonthlyPrices(ticker)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch data: %w", err)
+		return nil, err
+	}
+	return ToMonthlyReturns(prices), nil
+}
+
+// GetMonthlyPrices fetches monthly close prices for a given ticker.
+func (s *TiingoService) GetMonthlyPrices(ticker string) ([]PriceData, error) {
+	start := "2000-01-01"
+	end := time.Now().Format("2006-01-02")
+	url := fmt.Sprintf("https://api.tiingo.com/tiingo/daily/%s/prices?startDate=%s&endDate=%s&resampleFreq=monthly&token=%s",
+		ticker, start, end, s.APIKey)
+
+	resp, err := s.Client.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch prices: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
-	var data []PriceData
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+	var raw []struct {
+		Date  string  `json:"date"`
+		Close float64 `json:"adjClose"`
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(&raw)
+	if err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	return data, nil
+	var prices []PriceData
+	for _, r := range raw {
+		t, err := time.Parse(time.RFC3339, r.Date)
+		if err != nil {
+			continue
+		}
+		prices = append(prices, PriceData{
+			Date:  t,
+			Close: r.Close,
+		})
+	}
+	return prices, nil
 }
