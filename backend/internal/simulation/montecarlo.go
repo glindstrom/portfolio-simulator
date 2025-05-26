@@ -7,9 +7,19 @@ import (
 	"sort"
 )
 
-type SimulationResult struct {
-	Paths      [][]float64 // Each path is a slice of portfolio values over time
-	FinalStats SummaryStats
+type Params struct {
+	InitialValue     float64
+	Returns          []float64
+	WithdrawalRate   float64
+	InflationPerYear float64
+	Periods          int
+	Simulations      int
+}
+
+type Result struct {
+	Paths       [][]float64
+	FinalStats  SummaryStats
+	SuccessRate float64
 }
 
 type SummaryStats struct {
@@ -19,71 +29,84 @@ type SummaryStats struct {
 	Max    float64
 }
 
-type Simulator struct {
-	InitialValue float64
-	Returns      []float64 // Historical returns or simulated returns
-}
-
-// Simulate runs a Monte Carlo simulation using normally distributed returns.
-// N = number of simulations, periods = time steps (e.g. months or years)
-func (s *Simulator) Simulate(N int, periods int) (*SimulationResult, error) {
-	if len(s.Returns) == 0 {
+func SimulateNormal(params Params) (*Result, error) {
+	if len(params.Returns) == 0 {
 		return nil, errors.New("returns slice is empty")
 	}
-	mean, std := meanStd(s.Returns)
+	mean, std := meanStd(params.Returns)
 	if std == 0 {
 		return nil, errors.New("standard deviation of returns is zero")
 	}
 
-	paths := make([][]float64, N)
-	for i := 0; i < N; i++ {
-		path := make([]float64, periods+1)
-		path[0] = s.InitialValue
-		for t := 1; t <= periods; t++ {
-			// simulate return with normal distribution
-			r := rand.NormFloat64()*std + mean
-			path[t] = path[t-1] * (1 + r)
-		}
-		paths[i] = path
+	generateReturn := func() float64 {
+		return rand.NormFloat64()*std + mean
 	}
-
-	finalVals := extractFinalValues(paths)
-	summary := calculateSummary(finalVals)
-
-	return &SimulationResult{
-		Paths:      paths,
-		FinalStats: summary,
-	}, nil
+	return runSimulationPaths(params, generateReturn)
 }
 
-// BootstrapSim runs a Monte Carlo simulation using bootstrapping (sampling with replacement) from historical returns.
-func (s *Simulator) BootstrapSim(N int, periods int) (*SimulationResult, error) {
-	if len(s.Returns) == 0 {
+func SimulateBootstrap(params Params) (*Result, error) {
+	if len(params.Returns) == 0 {
 		return nil, errors.New("returns slice is empty")
 	}
 
-	nReturns := len(s.Returns)
+	generateReturn := func() float64 {
+		return params.Returns[rand.Intn(len(params.Returns))]
+	}
+	return runSimulationPaths(params, generateReturn)
+}
+
+func runSimulationPaths(params Params, generateReturn func() float64) (*Result, error) {
+	N := params.Simulations
+	periods := params.Periods
+
 	paths := make([][]float64, N)
-	for i := 0; i < N; i++ {
-		path := make([]float64, periods+1)
-		path[0] = s.InitialValue
-		for t := 1; t <= periods; t++ {
-			r := s.Returns[rand.Intn(nReturns)] // bootstrap sample
-			path[t] = path[t-1] * (1 + r)
-		}
-		paths[i] = path
+	finalVals := make([]float64, N)
+	successCount := 0
+
+	withdrawal := params.InitialValue * params.WithdrawalRate
+	inflationFactor := 1.0 + params.InflationPerYear
+	adjustedWithdrawals := make([]float64, periods+1)
+	for t := range adjustedWithdrawals {
+		adjustedWithdrawals[t] = withdrawal * math.Pow(inflationFactor, float64(t)/12)
 	}
 
-	finalVals := extractFinalValues(paths)
-	summary := calculateSummary(finalVals)
+	for i := 0; i < N; i++ {
+		path := make([]float64, periods+1)
+		path[0] = params.InitialValue
+		success := true
 
-	return &SimulationResult{
-		Paths:      paths,
-		FinalStats: summary,
+		for t := 1; t <= periods; t++ {
+			r := generateReturn()
+			path[t] = path[t-1] * (1 + r)
+
+			if params.WithdrawalRate > 0 {
+				path[t] -= adjustedWithdrawals[t]
+				if path[t] <= 0 {
+					path[t] = 0
+					success = false
+					break
+				}
+			}
+		}
+
+		paths[i] = path
+		finalVals[i] = path[len(path)-1]
+		if success {
+			successCount++
+		}
+	}
+
+	summary := calculateSummary(finalVals)
+	successRate := float64(successCount) / float64(N)
+
+	return &Result{
+		Paths:       paths,
+		FinalStats:  summary,
+		SuccessRate: successRate,
 	}, nil
 }
 
-// meanStd calculates mean and standard deviation of a slice of floats.
+// meanStd calculates the mean and standard deviation of a slice of float64.
 func meanStd(arr []float64) (mean, std float64) {
 	n := float64(len(arr))
 	if n == 0 {
@@ -104,16 +127,7 @@ func meanStd(arr []float64) (mean, std float64) {
 	return
 }
 
-// extractFinalValues extracts the last value from each simulation path.
-func extractFinalValues(paths [][]float64) []float64 {
-	finalVals := make([]float64, len(paths))
-	for i, path := range paths {
-		finalVals[i] = path[len(path)-1]
-	}
-	return finalVals
-}
-
-// calculateSummary computes mean, median, min and max from a slice of float64.
+// calculateSummary computes summary statistics for a slice of float64 values.
 func calculateSummary(values []float64) SummaryStats {
 	if len(values) == 0 {
 		return SummaryStats{}
@@ -127,13 +141,13 @@ func calculateSummary(values []float64) SummaryStats {
 	mean /= float64(len(values))
 
 	median := values[len(values)/2]
-	min := values[0]
-	max := values[len(values)-1]
+	minValue := values[0]
+	maxValue := values[len(values)-1]
 
 	return SummaryStats{
 		Mean:   mean,
 		Median: median,
-		Min:    min,
-		Max:    max,
+		Min:    minValue,
+		Max:    maxValue,
 	}
 }

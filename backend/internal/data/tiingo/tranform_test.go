@@ -7,16 +7,15 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"portfolio-simulator/backend/internal/data/tiingo"
 )
 
 var (
-	service       *tiingo.TiingoService
+	service       *TiingoService
 	cachedReturns map[string][]float64
 )
 
 func TestMain(m *testing.M) {
-	service = tiingo.NewTiingoService()
+	service = NewTiingoService()
 	cachedReturns = make(map[string][]float64)
 	os.Exit(m.Run())
 }
@@ -33,8 +32,8 @@ func getReturns(t *testing.T, ticker string) []float64 {
 	return returns
 }
 
-func TestGetMonthlyReturns_EUNL(t *testing.T) {
-	returns := getReturns(t, "EUNL")
+func TestGetMonthlyReturns_SPY(t *testing.T) {
+	returns := getReturns(t, "SPY")
 	require.NotEmpty(t, returns)
 }
 

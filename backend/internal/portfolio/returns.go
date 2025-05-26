@@ -36,6 +36,7 @@ func WeightedMonthlyReturns(p model.Portfolio, returnsByAsset map[string][]float
 	return weightedReturns, nil
 }
 
+// ComputePortfolioReturns fetches monthly returns for each asset in the portfolio.
 func ComputePortfolioReturns(
 	p model.Portfolio,
 	fetchFunc func(string) ([]float64, error),

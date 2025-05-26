@@ -1,19 +1,21 @@
+// backend/cmd/server/main.go
+
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
+
+	"portfolio-simulator/backend/internal/api"
+	"portfolio-simulator/backend/internal/data/tiingo"
 )
 
 func main() {
-	http.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "pong")
-	})
+	tiingoSvc := tiingo.NewTiingoService()
+	handler := &api.Handler{Tiingo: tiingoSvc}
 
-	addr := ":8085"
-	log.Printf("Server running at %s...", addr)
-	if err := http.ListenAndServe(addr, nil); err != nil {
-		log.Fatalf("could not start server: %v", err)
-	}
+	http.HandleFunc("/api/simulate", handler.RunSimulation)
+
+	log.Println("Server running on :8085")
+	log.Fatal(http.ListenAndServe(":8085", nil))
 }
