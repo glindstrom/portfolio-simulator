@@ -16,8 +16,8 @@ type AssetRequest struct {
 type SimulationRequest struct {
 	Ticker      string         `json:"ticker,omitempty"`    // Used if simulating a single asset
 	Portfolio   []AssetRequest `json:"portfolio,omitempty"` // Optional: a list of assets with weights
-	InitialVal  float64        `json:"initial_value"`       // Starting portfolio value
-	Withdrawal  float64        `json:"withdrawal_rate"`     // Annual withdrawal rate (e.g. 0.04 = 4%)
+	InitialVal  float64        `json:"initialValue"`        // Starting portfolio value
+	Withdrawal  float64        `json:"withdrawalRate"`      // Annual withdrawal rate (e.g. 0.04 = 4%)
 	Inflation   float64        `json:"inflation"`           // Annual inflation rate (e.g. 0.02 = 2%)
 	Simulations int            `json:"simulations"`         // Number of simulation paths
 	Periods     int            `json:"periods"`             // Number of periods (e.g. months)
