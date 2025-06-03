@@ -1,12 +1,13 @@
 package model
 
-// Asset represents a single portfolio asset with its ticker symbol and allocation weight.
+// Asset represents a single asset within a portfolio, defined by its
+// ticker symbol and its allocation weight.
 type Asset struct {
-	Ticker string  // e.g. "BTC", "EUNL"
-	Weight float64 // Allocation as a fraction, e.g. 0.05 for 5%
+	Ticker string  // Ticker symbol (e.g., "AAPL", "SPY").
+	Weight float64 // Allocation weight within the portfolio (e.g., 0.6 for 60%).
 }
 
-// Portfolio holds multiple assets with their allocations.
+// Portfolio represents a collection of assets.
 type Portfolio struct {
 	Assets []Asset
 }

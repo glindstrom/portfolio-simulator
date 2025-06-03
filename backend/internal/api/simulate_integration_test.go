@@ -8,9 +8,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"testing"
+
+	// Assuming these are the correct import paths based on your project structure
 	"portfolio-simulator/backend/internal/api"
 	"portfolio-simulator/backend/internal/data/tiingo"
-	"testing"
+
+	"github.com/stretchr/testify/require" // Import testify/require
 )
 
 func TestRunSimulation_WithPortfolio_NormalAndBootstrap(t *testing.T) {
@@ -19,32 +23,29 @@ func TestRunSimulation_WithPortfolio_NormalAndBootstrap(t *testing.T) {
 	}
 
 	handler := &api.Handler{
-		Tiingo: tiingo.NewTiingoService(),
+		Fetcher: tiingo.NewService(),
 	}
 
 	methods := []string{"normal", "bootstrap"}
 
 	for _, method := range methods {
 		t.Run(method, func(t *testing.T) {
-			// Build the simulation request with withdrawal and inflation parameters
 			reqBody := api.SimulationRequest{
 				Portfolio: []api.AssetRequest{
-					{Ticker: "AAPL", Weight: 0.5},
-					{Ticker: "MSFT", Weight: 0.3},
-					{Ticker: "SPY", Weight: 0.2},
+					{Ticker: "AAPL", Weight: 0.1},
+					{Ticker: "MSFT", Weight: 0.1},
+					{Ticker: "SPY", Weight: 0.8}, // SPY is an ETF, testing Tiingo's capability
 				},
 				InitialVal:  10000,
-				Periods:     12,
+				Periods:     12, // 1 year of monthly periods
 				Simulations: 100,
 				Method:      method,
-				Withdrawal:  0.04, // 4% annual withdrawal
-				Inflation:   0.02, // 2% annual inflation
+				Withdrawal:  0.04, // 4% annual withdrawal rate
+				Inflation:   0.02, // 2% annual inflation rate
 			}
 
 			body, err := json.Marshal(reqBody)
-			if err != nil {
-				t.Fatalf("failed to marshal request: %v", err)
-			}
+			require.NoError(t, err, "Failed to marshal request for method %s", method)
 
 			req := httptest.NewRequest(http.MethodPost, "/api/simulate", bytes.NewBuffer(body))
 			req.Header.Set("Content-Type", "application/json")
@@ -52,34 +53,35 @@ func TestRunSimulation_WithPortfolio_NormalAndBootstrap(t *testing.T) {
 
 			handler.RunSimulation(rr, req)
 
-			if rr.Code != http.StatusOK {
-				t.Logf("Body: %s", rr.Body.String())
-				t.Fatalf("expected 200 OK, got %d", rr.Code)
-			}
+			require.Equal(t, http.StatusOK, rr.Code, "[%s] Expected status 200 OK, got %d. Body: %s", method, rr.Code, rr.Body.String())
 
 			var resp api.SimulationResponse
-			if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
-				t.Fatalf("failed to decode response: %v", err)
-			}
+			err = json.NewDecoder(rr.Body).Decode(&resp)
+			require.NoError(t, err, "[%s] Failed to decode response", method)
 
-			// Log basic statistics
-			t.Logf("[%s] Mean: %.2f, Median: %.2f, Min: %.2f, Max: %.2f, SuccessRate: %.2f",
+			// Log basic statistics for manual inspection if needed
+			t.Logf("[%s] Mean: %.2f, Median: %.2f, Min: %.2f, Max: %.2f, SuccessRate: %.2f%%",
 				method,
 				resp.FinalStats.Mean,
 				resp.FinalStats.Median,
 				resp.FinalStats.Min,
 				resp.FinalStats.Max,
-				resp.SuccessRate,
+				resp.SuccessRate*100, // Display success rate as percentage
 			)
 
-			// Validate that we still have the expected number of paths
-			if len(resp.Paths) != 100 {
-				t.Errorf("[%s] expected 100 simulation paths, got %d", method, len(resp.Paths))
+			require.Len(t, resp.Paths, 100, "[%s] Expected 100 simulation paths", method)
+			if len(resp.Paths) > 0 {
+				require.Len(t, resp.Paths[0], reqBody.Periods+1, "[%s] Expected path length to be periods+1", method)
 			}
 
-			// SuccessRate should be between 0 and 1
-			if resp.SuccessRate < 0 || resp.SuccessRate > 1 {
-				t.Errorf("[%s] unexpected success rate: %.2f", method, resp.SuccessRate)
+			// SuccessRate should be between 0 and 1 (inclusive)
+			require.GreaterOrEqual(t, resp.SuccessRate, 0.0, "[%s] Success rate should be >= 0", method)
+			require.LessOrEqual(t, resp.SuccessRate, 1.0, "[%s] Success rate should be <= 1", method)
+
+			// Basic sanity checks for financial stats
+
+			if resp.SuccessRate > 0 { // Only check these if there's some success, otherwise Min/Max/Mean might be 0 or negative due to depletion
+				require.True(t, resp.FinalStats.Max >= resp.FinalStats.Min, "[%s] Max should be >= Min", method)
 			}
 		})
 	}

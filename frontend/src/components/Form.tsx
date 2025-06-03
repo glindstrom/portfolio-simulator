@@ -117,7 +117,7 @@ export default function Form({ onSimulate, isLoading }: Props) { // Destructure 
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 pt-4 border-t mt-6">
                 <div>
-                    <label htmlFor="initialValue" className="block text-sm font-medium text-gray-700">Initial Value (€)</label>
+                    <label htmlFor="initialValue" className="block text-sm font-medium text-gray-700">Initial Value ($)</label>
                     <input
                         id="initialValue"
                         type="number"

@@ -28,6 +28,7 @@ export type SummaryStats = {
 // Full response from the backend simulation API
 export type SimulationResponse = {
     paths: number[][];
-    final_stats: SummaryStats;
-    success_rate: number; // between 0 and 1
+    finalStats: SummaryStats;
+    successRate: number; // between 0 and 1
+    simulatedCAGR: number; // Compound Annual Growth Rate of the simulated paths, including withdrawals
 };
