@@ -30,7 +30,7 @@ func (h *Handler) RunSimulation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req SimulationRequest // Defined in types.go; AssetRequest within it no longer has AssetType.
+	var req SimulationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
 		return

@@ -38,7 +38,7 @@ func SimulateNormal(params Params) (*Result, error) {
 	if len(params.Returns) == 0 {
 		return nil, errors.New("simulation: returns slice is empty, cannot calculate mean/std for normal distribution")
 	}
-	mean, std := meanStd(params.Returns) // Now uses sample standard deviation
+	mean, std := meanStd(params.Returns)
 
 	// If std is 0 (e.g., all historical returns are identical, or only one return data point),
 	// the simulation becomes deterministic based on the mean return. This is generally acceptable.
