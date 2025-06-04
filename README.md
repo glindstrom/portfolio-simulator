@@ -27,7 +27,7 @@ This project demonstrates capabilities in backend development with Go, frontend 
 
 The application interface allows users to input simulation parameters on the left and view the projected distribution chart and summary statistics on the right.
 
-`![Portfolio Growth Simulator Interface](docs/screenshots/simulator_interface.png)`
+![Portfolio Growth Simulator Interface](docs/screenshots/simulator_interface.png)
 ## Tech Stack
 
 * **Backend**:
@@ -147,7 +147,7 @@ The backend exposes a single primary API endpoint:
       "inflation": 0.02
     }
     ```
-* **Response Body** (JSON, using camelCase):
+* **Response Body** (JSON):
     ```json
     {
       "paths": [[10000, 10100, ...], ...],
